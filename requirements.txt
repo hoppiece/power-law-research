@@ -1,0 +1,8 @@
+pytorch-lighting
+matplotlib
+tqdm
+logzero
+jupyter
+jupyterlab
+tensorboard
+sklearn
