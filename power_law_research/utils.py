@@ -1,14 +1,16 @@
 from typing import Tuple
 
 import numpy as np
-
 import torch
 import torch.nn as nn
-
 from sklearn.decomposition import PCA
 
+from models import EncoderDecoderModel
 
-def sample_neuron_firings(model: nn.Module, dataloader: torch.utils.data.DataLoader) -> np.array:
+
+def sample_neuron_firings(
+    model: EncoderDecoderModel, dataloader: torch.utils.data.DataLoader
+) -> np.array:
     """
     入力データに対する中間ニューロンの発火状況を numpy.array で取得. 中間ニューロンは, model.encode メソッドで
     得られることを仮定しています.
