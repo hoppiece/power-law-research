@@ -8,6 +8,13 @@ from torch import nn
 
 
 class EncoderDecoderModel(pl.LightningModule):
+    def __init__(self) -> None:
+        super().__init__()
+        self.epoch_loss_dict = {
+            "train_loss_epoch_ave": [],
+            "valid_loss_epoch_ave": [],
+        }
+
     def encode(self, tensor):
         raise NotImplementedError
 
@@ -28,8 +35,35 @@ class EncoderDecoderModel(pl.LightningModule):
             raise NotImplementedError
         return optimizer
 
+    def sample_neuron_firings(self, dataloader: torch.utils.data.DataLoader):
+        """
+        入力データに対する中間ニューロンの発火状況を numpy.array で取得. 中間ニューロンは, model.encode メソッドで
+        得られることを仮定しています.
+
+        Args:
+            dataloader (torch.utils.data.DataLoader): Input dataloader.
+
+        Returns:
+            np.array: Neuron firing matrix, shape of (#data, vec_size).
+        """
+        firings = []
+        for data, target in dataloader:
+            vv = self.encode(data.view(data.size(0), -1)).detach()
+            firings.append(vv)
+        firings = torch.cat(firings).numpy()
+        return firings
+
+    def training_epoch_end(self, training_step_outputs):
+        epoch_train_loss = torch.stack([x["loss"] for x in training_step_outputs]).mean()
+        self.epoch_loss_dict["train_loss_epoch_ave"].append(epoch_train_loss)
+
 
 class LitVanillaVAE(EncoderDecoderModel):
+    """
+    Original Paper: "Auto-Encoding Variational Bayes" Diederik et. al., 2014 https://arxiv.org/abs/1312.6114
+    Implemetnation reference: https://github.com/pytorch/examples/tree/main/vae
+    """
+
     def __init__(self, n_vis, n_hid=100, optimizer_name="sgd", lr=0.01):
         super().__init__()
         self.n_vis = n_vis
@@ -67,8 +101,8 @@ class LitVanillaVAE(EncoderDecoderModel):
         return self.decoder(h)
 
     def train_loss(self, tensor):
-        batch = tensor.size(0)
-        x = tensor.view(batch, -1)
+        batch_size = tensor.size(0)
+        x = tensor.view(batch_size, -1)
         mean, log_var = self.encoder_mean(x), self.encoder_var(x)
         delta = 1e-8
         KL = 0.5 * torch.sum(1 + log_var - mean**2 - torch.exp(log_var))
@@ -79,20 +113,24 @@ class LitVanillaVAE(EncoderDecoderModel):
             x * torch.log(x_hat + delta) + (1 - x) * torch.log(1 - x_hat + delta)
         )
         lower_bound = KL + reconstruction
+        # VAE loss does not divide by batch: https://github.com/pytorch/examples/issues/652
+        # When average: https://github.com/pytorch/examples/issues/234
         return -lower_bound
 
     def training_step(self, batch, batch_idx):
         tensor, label = batch
         loss = self.train_loss(tensor)
+        recon_loss = self.recon_loss(tensor)
         self.log("train_loss", loss)
-        self.log("recon loss", self.recon_loss(tensor))
+        self.log("recon_loss", recon_loss)
 
-        return loss
+        return {"loss": loss, "recon_loss": loss}
 
     def recon_loss(self, tensor):
-        x = tensor.view(tensor.size(0), -1)
+        batch_size = tensor.size(0)
+        x = tensor.view(batch_size, -1)
         recon = self.forward(x)
-        return F.mse_loss(x, recon)
+        return F.mse_loss(x, recon) / batch_size
 
 
 class LitScaleFreeVAE(LitVanillaVAE):
@@ -101,8 +139,8 @@ class LitScaleFreeVAE(LitVanillaVAE):
         self.var_decay_1d = torch.tensor([n ** (-power_law_gamma) for n in range(1, n_hid + 1)])
 
     def _sample_hidden(self, mean, log_var):
-        batch = mean.size(0)
-        var_decay = self.var_decay_1d.repeat(batch, 1)
+        batch_size = mean.size(0)
+        var_decay = self.var_decay_1d.repeat(batch_size, 1)
         epsilon = torch.mul(torch.randn(mean.shape), var_decay).to(mean.device)
         h = mean + epsilon * torch.exp(0.5 * log_var)
         return h

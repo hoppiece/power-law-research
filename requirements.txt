@@ -1,4 +1,4 @@
-pytorch-lighting
+pytorch-lightning
 matplotlib
 tqdm
 logzero
@@ -6,3 +6,4 @@ jupyter
 jupyterlab
 tensorboard
 sklearn
+numpy
