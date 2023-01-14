@@ -64,31 +64,47 @@ class LitVanillaVAE(EncoderDecoderModel):
     Implemetnation reference: https://github.com/pytorch/examples/tree/main/vae
     """
 
-    def __init__(self, n_vis, n_hid=100, optimizer_name="sgd", lr=0.01):
+    def __init__(
+        self,
+        n_vis,
+        n_hid=100,
+        optimizer_name="sgd",
+        lr=0.01,
+        normalize_loss=False,
+        *args,
+        **kwargs
+    ):
         super().__init__()
         self.n_vis = n_vis
         self.n_hid = n_hid
-        self.encoder_mean = nn.Sequential(nn.Linear(n_vis, n_hid), nn.ReLU())
+        self.optimizer_name = optimizer_name
+        self.lr = lr
+        self.is_normalize_loss = normalize_loss
 
+        self.set_encoder()
+        self.set_decoder()
+
+    def set_encoder(self):
+        self.encoder_mean = nn.Sequential(nn.Linear(self.n_vis, self.n_hid), nn.ReLU())
+
+        # In order to avoid numerical instability, the parameters of the encoder
+        # for a variance should be initialized to zero, not Gaussian. See
         # https://stackoverflow.com/questions/49634488/keras-variational-autoencoder-nan-loss
         self.encoder_var = nn.Sequential(
             OrderedDict(
                 [
-                    ("enc_var_fc1", nn.Linear(n_vis, n_hid)),
+                    ("enc_var_fc1", nn.Linear(self.n_vis, self.n_hid)),
                     ("enc_var_relu1", nn.ReLU()),
                 ]
             )
         )
         torch.nn.init.zeros_(self.encoder_var.enc_var_fc1.weight)
 
-        self.decoder = nn.Sequential(nn.Linear(n_hid, n_vis), nn.Sigmoid())
-        self.optimizer_name = optimizer_name
-        self.lr = lr
+    def set_decoder(self):
+        self.decoder = nn.Sequential(nn.Linear(self.n_hid, self.n_vis), nn.Sigmoid())
 
     def _sample_hidden(self, mean, log_var):
         epsilon = torch.randn(mean.shape).to(mean.device)
-        # Next code sometimes makes NaN for large log_var,
-        # so weights of `self.encoder_var` are initialized to zero.
         h = mean + epsilon * torch.exp(0.5 * log_var)
         return h
 
@@ -109,20 +125,32 @@ class LitVanillaVAE(EncoderDecoderModel):
 
         z = self._sample_hidden(mean, log_var)
         x_hat = self.decode(z)
+
+        # Reconstruction loss is binary cross entorpy
         reconstruction = torch.sum(
             x * torch.log(x_hat + delta) + (1 - x) * torch.log(1 - x_hat + delta)
         )
-        lower_bound = KL + reconstruction
-        # VAE loss does not divide by batch: https://github.com/pytorch/examples/issues/652
-        # When average: https://github.com/pytorch/examples/issues/234
+        # This is same as
+        # -F.binary_cross_entropy(x_hat, x, reduction='sum')
+
+        # VAE loss does not simply divide by batch: https://github.com/pytorch/examples/issues/652
+        if self.is_normalize_loss:
+            # https://github.com/pytorch/examples/issues/234
+            # This occurs something worng behavior.
+            lower_bound = KL / (batch_size * self.n_vis) + reconstruction / batch_size
+        else:
+            lower_bound = KL + reconstruction
         return -lower_bound
 
     def training_step(self, batch, batch_idx):
         tensor, label = batch
+        batch_size = tensor.size(0)
         loss = self.train_loss(tensor)
         recon_loss = self.recon_loss(tensor)
         self.log("train_loss", loss)
+        self.log("train_loss/batch", loss / batch_size)
         self.log("recon_loss", recon_loss)
+        self.log("recon_loss/batch", recon_loss / batch_size)
 
         return {"loss": loss, "recon_loss": loss}
 

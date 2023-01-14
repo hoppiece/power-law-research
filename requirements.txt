@@ -5,5 +5,7 @@ logzero
 jupyter
 jupyterlab
 tensorboard
-sklearn
+scikit-learn
 numpy
+torch
+torchvision
