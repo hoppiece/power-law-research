@@ -1,0 +1,80 @@
+{
+    "name": "devcontainer-research",
+    "build": {
+        "context": "..",
+        "dockerfile": "../Dockerfile"
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-python.python",
+                "ms-python.vscode-pylance",
+                "njpwerner.autodocstring",
+                "kevinrose.vsc-python-indent",
+                "ms-python.flake8",
+                "ms-python.isort",
+                "ms-python.black-formatter",
+                "ms-python.mypy-type-checker",
+                "ms-toolsai.jupyter",
+                "ms-toolsai.jupyter-keymap",
+                "ms-toolsai.jupyter-renderers",
+                "ms-toolsai.vscode-jupyter-cell-tags",
+                "ms-toolsai.vscode-jupyter-slideshow",
+                "oderwat.indent-rainbow",
+                "ms-azuretools.vscode-docker",
+                "exiasr.hadolint",
+                "hediet.vscode-drawio",
+                "irongeek.vscode-env",
+                "james-yu.latex-workshop",
+                "marp-team.marp-vscode",
+                "mechatroner.rainbow-csv",
+                "ms-ceintl.vscode-language-pack-ja",
+                "redhat.vscode-yaml",
+                "be5invis.toml",
+                "davidanson.vscode-markdownlint",
+                "eamodio.gitlens",
+            ],
+            "settings": {
+                "terminal.integrated.profiles.linux": {
+                    "bash": {
+                        "path": "/bin/bash",
+                    }
+                },
+                "terminal.integrated.defaultProfile.linux": "bash",
+                "python.linting.enabled": true,
+                "python.linting.pylintEnabled": false,
+                "python.linting.flake8Enabled": true,
+                "python.linting.mypyEnabled": true,
+                "python.linting.lintOnSave": true,
+                "python.languageServer": "Pylance",
+                "python.linting.flake8Args": [
+                    "--max-line-length=99",
+                    "--extend-ignore=E203",
+                ],
+                "python.formatting.provider": "black",
+                "python.formatting.blackArgs": [
+                    "--line-length=99",
+                ],
+                "isort.args": [
+                    "--profile",
+                    "black",
+                ],
+                "[python]": {
+                    "editor.formatOnSave": true,
+                    "editor.codeActionsOnSave": {
+                        "source.organizeImports": true
+                    },
+                    "editor.defaultFormatter": "ms-python.black-formatter",
+                },
+                "autoDocstring.docstringFormat": "google",
+            }
+        }
+    },
+    "runArgs": [
+        "--gpus",
+        "all",
+        "--memory=16g",
+        "--cpus=10" // Does not work on podman. See https://github.com/containers/podman/blob/main/troubleshooting.md#26-running-containers-with-resource-limits-fails-with-a-permissions-error
+    ],
+    "remoteUser": "root"
+}
