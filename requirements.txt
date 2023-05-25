@@ -9,3 +9,4 @@ scikit-learn
 numpy
 torch
 torchvision
+mypy

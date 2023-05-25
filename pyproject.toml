@@ -1,0 +1,27 @@
+[tool.poetry]
+name = "power-law-research"
+version = "0.1.0"
+description = ""
+authors = ["Your Name <you@example.com>"]
+readme = "README.md"
+packages = [{include = "power_law_research"}]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+pytorch-lightning = "^2.0.2"
+matplotlib = "^3.7.1"
+tqdm = "^4.65.0"
+logzero = "^1.7.0"
+jupyter = "^1.0.0"
+jupyterlab = "^4.0.0"
+tensorboard = "^2.13.0"
+scikit-learn = "^1.2.2"
+numpy = "^1.24.3"
+torch = "^2.0.1"
+torchvision = "^0.15.2"
+mypy = "^1.3.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
