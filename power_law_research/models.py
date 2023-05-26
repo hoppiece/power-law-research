@@ -10,9 +10,11 @@ from torch import nn
 class EncoderDecoderModel(pl.LightningModule):
     def __init__(self) -> None:
         super().__init__()
+        self.save_hyperparameters()
+        self.training_step_outputs = []
         self.epoch_loss_dict = {
             "train_loss_epoch_ave": [],
-            "valid_loss_epoch_ave": [],
+            "train_recon_loss_epoch_ave": [],
         }
 
     def encode(self, tensor):
@@ -53,9 +55,25 @@ class EncoderDecoderModel(pl.LightningModule):
         firings = torch.cat(firings).numpy()
         return firings
 
-    def training_epoch_end(self, training_step_outputs):
-        epoch_train_loss = torch.stack([x["loss"] for x in training_step_outputs]).mean()
-        self.epoch_loss_dict["train_loss_epoch_ave"].append(epoch_train_loss)
+    def on_train_epoch_end(self):
+        epoch_average_loss = torch.stack([x["loss"] for x in self.training_step_outputs]).mean()
+        epoch_average_recon_loss = torch.stack(
+            [x["recon_loss"] for x in self.training_step_outputs]
+        ).mean()
+
+        self.epoch_loss_dict["train_loss_epoch_ave"].append(epoch_average_loss)
+        self.epoch_loss_dict["train_recon_loss_epoch_ave"].append(epoch_average_recon_loss)
+
+        self.logger.log_hyperparams(
+            self.hparams,
+            {
+                f"metrics/ave_loss_epoch/{self.current_epoch}": epoch_average_loss,
+                f"metrics/ave_recon_loss_epoch/{self.current_epoch}": epoch_average_recon_loss,
+            },
+        )
+        self.log(f"metrics/ave_loss_epoch/{self.current_epoch}", epoch_average_loss)
+        self.log(f"metrics/ave_recon_loss_epoch/{self.current_epoch}", epoch_average_recon_loss)
+        self.training_step_outputs.clear()
 
 
 class LitVanillaVAE(EncoderDecoderModel):
@@ -72,7 +90,7 @@ class LitVanillaVAE(EncoderDecoderModel):
         lr=0.01,
         normalize_loss=False,
         *args,
-        **kwargs
+        **kwargs,
     ):
         super().__init__()
         self.n_vis = n_vis
@@ -147,12 +165,14 @@ class LitVanillaVAE(EncoderDecoderModel):
         batch_size = tensor.size(0)
         loss = self.train_loss(tensor)
         recon_loss = self.recon_loss(tensor)
-        self.log("train_loss", loss)
-        self.log("train_loss/batch", loss / batch_size)
-        self.log("recon_loss", recon_loss)
-        self.log("recon_loss/batch", recon_loss / batch_size)
+        self.log("loss/train", loss)
+        self.log("loss/train_batch", loss / batch_size)
+        self.log("loss/recon", recon_loss)
+        self.log("loss/recon_batch", recon_loss / batch_size)
 
-        return {"loss": loss, "recon_loss": loss}
+        outputs = {"loss": loss, "recon_loss": loss}
+        self.training_step_outputs.append(outputs)
+        return outputs
 
     def recon_loss(self, tensor):
         batch_size = tensor.size(0)
