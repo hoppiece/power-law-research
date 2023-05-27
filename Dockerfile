@@ -42,11 +42,6 @@ RUN apt-get update && \
 RUN curl -L https://github.com/hadolint/hadolint/releases/download/v$HADOLINT_VERSION/hadolint-`uname -s`-`uname -m` -o /usr/local/bin/hadolint && \
   chmod +x /usr/local/bin/hadolint
 
-RUN pip install --upgrade --no-cache-dir pip setuptools wheel && \
-  pip install --no-cache-dir poetry && \
-  poetry config virtualenvs.in-project false
-
-
-COPY pyproject.toml poetry.lock ./
-RUN poetry install --no-root --no-interaction --no-ansi -vvv
-
+COPY requirements.txt ./
+RUN pip install --upgrade --no-cache-dir pip setuptools && \
+  pip install -r requirements.txt
