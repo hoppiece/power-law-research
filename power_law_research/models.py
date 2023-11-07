@@ -1,4 +1,3 @@
-import abc
 from collections import OrderedDict
 
 import pytorch_lightning as pl
@@ -72,7 +71,10 @@ class EncoderDecoderModel(pl.LightningModule):
             },
         )
         self.log(f"metrics/ave_loss_epoch/{self.current_epoch}", epoch_average_loss)
-        self.log(f"metrics/ave_recon_loss_epoch/{self.current_epoch}", epoch_average_recon_loss)
+        self.log(
+            f"metrics/ave_recon_loss_epoch/{self.current_epoch}",
+            epoch_average_recon_loss,
+        )
         self.training_step_outputs.clear()
 
 
@@ -166,7 +168,7 @@ class LitVanillaVAE(EncoderDecoderModel):
         loss = self.train_loss(tensor)
         recon_loss = self.recon_loss(tensor)
         self.log("loss/train", loss)
-        self.log("loss/train_batch", loss / batch_size)
+        self.log("loss/train_batch", loss / batch_size, prog_bar=True)
         self.log("loss/recon", recon_loss)
         self.log("loss/recon_batch", recon_loss / batch_size)
 
@@ -182,8 +184,17 @@ class LitVanillaVAE(EncoderDecoderModel):
 
 
 class LitScaleFreeVAE(LitVanillaVAE):
-    def __init__(self, n_vis, n_hid=100, optimizer_name="sgd", lr=0.01, power_law_gamma=1):
-        super().__init__(n_vis, n_hid, optimizer_name, lr)
+    def __init__(
+        self,
+        n_vis,
+        n_hid=100,
+        optimizer_name="sgd",
+        lr=0.01,
+        power_law_gamma=1,
+        *args,
+        **kwargs,
+    ):
+        super().__init__(n_vis, n_hid, optimizer_name, lr, *args, **kwargs)
         self.var_decay_1d = torch.tensor([n ** (-power_law_gamma) for n in range(1, n_hid + 1)])
 
     def _sample_hidden(self, mean, log_var):

@@ -10,3 +10,5 @@ numpy
 torch
 torchvision
 mypy
+lightning-bolts
+torchmetrics[image]

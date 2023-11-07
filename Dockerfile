@@ -1,8 +1,6 @@
-FROM  nvcr.io/nvidia/pytorch:23.04-py3
+FROM  nvcr.io/nvidia/pytorch:23.10-py3
 # FROM nvidia/cuda:12.1.1-base-ubuntu22.04
 
-# https://github.com/hadolint/hadolint/releases
-ARG HADOLINT_VERSION=2.12.0
 
 WORKDIR /code
 
@@ -34,13 +32,11 @@ RUN apt-get update && \
   curl \
   bzip2 \
   unzip \
+  pipx \
   parallel \
   &&  apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
-# Install hadolint
-RUN curl -L https://github.com/hadolint/hadolint/releases/download/v$HADOLINT_VERSION/hadolint-`uname -s`-`uname -m` -o /usr/local/bin/hadolint && \
-  chmod +x /usr/local/bin/hadolint
 
 COPY requirements.txt ./
 RUN pip install --upgrade --no-cache-dir pip setuptools && \

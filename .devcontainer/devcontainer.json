@@ -22,7 +22,6 @@
                 "ms-toolsai.vscode-jupyter-slideshow",
                 "oderwat.indent-rainbow",
                 "ms-azuretools.vscode-docker",
-                "exiasr.hadolint",
                 "hediet.vscode-drawio",
                 "irongeek.vscode-env",
                 "james-yu.latex-workshop",
@@ -59,6 +58,7 @@
                     "--profile",
                     "black",
                 ],
+                "editor.formatOnSave": true,
                 "[python]": {
                     "editor.formatOnSave": true,
                     "editor.codeActionsOnSave": {
@@ -73,7 +73,7 @@
     "runArgs": [
         "--gpus",
         "all",
-        "--memory=64g",
+        "--memory=200g",
         "--cpus=40", // May does not work on rootless container. See https://github.com/containers/podman/blob/main/troubleshooting.md#26-running-containers-with-resource-limits-fails-with-a-permissions-error ,https://matsuand.github.io/docs.docker.jp.onthefly/engine/security/rootless/#limiting-resources:~:text=%E3%81%AE%E5%88%A9%E7%94%A8%E5%88%B6%E9%99%90-,%F0%9F%94%97,-Limiting%20resources%20with
     ],
     "remoteUser": "root"
