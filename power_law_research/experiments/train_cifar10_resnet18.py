@@ -70,11 +70,13 @@ class BoltScalefreeVAE(VAE):
         dtype = mu.dtype
 
         var_decay_1d = torch.pow(
-            torch.arange(1, self.latent_dim + 1, dtype=dtype, device=device) / self.latent_dim,
+            torch.arange(1, self.latent_dim + 1, dtype=dtype, device=device),
             -self.power_law_gamma,
         )
         var_decay = var_decay_1d.unsqueeze(0).expand(mu.shape[0], -1)
-        p = torch.distributions.Normal(torch.zeros_like(mu), torch.ones_like(std) * var_decay)
+        p = torch.distributions.Normal(
+            torch.zeros_like(mu), torch.ones_like(std) * var_decay
+        )
         q = torch.distributions.Normal(mu, std * var_decay)
         z = q.rsample()  # z = mu + std * epsilon
 
@@ -139,12 +141,16 @@ class BoltScalefreeClampVAE(VAE):
 
         var_decay_1d = torch.pow(
             torch.clamp(
-                torch.arange(1, self.latent_dim + 1, dtype=dtype, device=device), max=self.clip_dim
-            ),
+                torch.arange(1, self.latent_dim + 1, dtype=dtype, device=device),
+                max=self.clip_dim,
+            )
+            / self.latent_dim,
             -self.power_law_gamma,
         )
         var_decay = var_decay_1d.unsqueeze(0).expand(mu.shape[0], -1)
-        p = torch.distributions.Normal(torch.zeros_like(mu), torch.ones_like(std) * var_decay)
+        p = torch.distributions.Normal(
+            torch.zeros_like(mu), torch.ones_like(std) * var_decay
+        )
         q = torch.distributions.Normal(mu, std * var_decay)
         # z = mu + std * epsilon
         z = q.rsample()
@@ -153,27 +159,33 @@ class BoltScalefreeClampVAE(VAE):
 
 
 if __name__ == "__main__":
-    trials = [_ for _ in range(10)]
+    trials = [_ for _ in range(20)]
     gammas = [0.1 * i for i in range(20)]
 
     total = len(trials) * len(gammas)
     for trial in trials:
         for i, gamma in enumerate(gammas):
             experiment_idx = trial * len(gammas) + i
-            logger.info(f"[{experiment_idx+1} / {total}]: gamma={gamma} on trial {trial}")
-            tensorboard_dir = (
-                f"../log/scale_free_vae/gamma_search_fix1/trial={trial}/gamma={gamma}/tb"
+            logger.info(
+                f"[{experiment_idx+1} / {total}]: gamma={gamma} on trial {trial}"
             )
-            csv_dir = f"../log/scale_free_vae/gamma_search_fix1/trial={trial}/gamma={gamma}/csv"
-            tl_logger = pl.loggers.TensorBoardLogger(tensorboard_dir, default_hp_metric=False)
+            log_dir_base = f"../log/scale_free_vae/gamma_search_vanilla/trial={trial}/gamma={gamma}"
+            tensorboard_dir = f"{log_dir_base}/tb"
+            csv_dir = f"{log_dir_base}/csv"
+            tl_logger = pl.loggers.TensorBoardLogger(
+                tensorboard_dir, default_hp_metric=False
+            )
             csv_logger = pl.loggers.CSVLogger(csv_dir)
             data_module = CIFAR10DataModule(num_workers=16, data_dir="../data")
 
-            model = BoltScalefreeVAE(data_module.dims[-1], power_law_gamma=gamma)
+            model = BoltScalefreeClampVAE(
+                data_module.dims[-1],
+                power_law_gamma=gamma,
+            )
             trainer = pl.Trainer(
-                max_epochs=2,
+                max_epochs=1,
                 accelerator="gpu",
-                devices=[3],
+                devices=[0],
                 logger=[tl_logger, csv_logger],
                 enable_progress_bar=True,
             )
