@@ -2,19 +2,19 @@ from datetime import datetime
 
 import pytorch_lightning as pl
 import torch
+from draw_and_save_log import main as draw_and_save_log
 from logzero import logger
 from pl_bolts.datamodules.cifar10_datamodule import CIFAR10DataModule
 from pl_bolts.models.autoencoders import VAE
-from torch.nn import functional as F
-
-from draw_and_save_log import main as draw_and_save_log
 from synthetic_cgd_datamodule import SyntheticDataModule
+from torch.nn import functional as F
 
 # VAE の Implementation: https://github.com/Lightning-Universe/lightning-bolts/blob/master/src/pl_bolts/models/autoencoders/basic_vae/basic_vae_module.py
 
 
 class VAELogBeforeTraining(VAE):
     # Logging validation loss before the first epoch
+    # Base class for experiments.
     def on_train_start(self):
         # 初期バリデーションチェックを実行
         self.run_initial_validation()
@@ -44,6 +44,7 @@ class VAELogBeforeTraining(VAE):
 
 
 class BoltScalefreeVAE(VAELogBeforeTraining):
+    # Vanilla のScale-free VAE
     def __init__(
         self,
         input_height: int,
@@ -344,7 +345,7 @@ class BoltScalefreeClampWAE(VAELogBeforeTraining):
                 eps = _standard_normal(shape, dtype=self.loc.dtype, device=self.loc.device)
                 return self.loc + eps * self.scale
         """
-        std = torch.exp(log_var / 2).clamp(min=1e-6)
+        std = torch.exp(log_var / 2).clamp(min=1e-6) # WS Loss の安定性のために最小値を設定
         device = mu.device
         dtype = mu.dtype
 
@@ -482,11 +483,11 @@ class BoltScalefreeOtherDecayVAE(VAELogBeforeTraining):
 
 
 if __name__ == "__main__":
-    trials = [_ for _ in range(20)]
+    trials = [_ for _ in range(15, 20)]
     gammas = [0.1 * i for i in range(20)]
     total = len(trials) * len(gammas)
 
-    exp_name = "WAE_clamp_min_decay-0.001-rev1_ep5"
+    exp_name = "clamp_min_decay-0.001-ep5"
     for trial in trials:
         for i, gamma in enumerate(gammas):
             experiment_idx = trial * len(gammas) + i
@@ -502,7 +503,7 @@ if __name__ == "__main__":
             csv_logger = pl.loggers.CSVLogger(csv_dir)
             data_module = CIFAR10DataModule(num_workers=16, data_dir="../data")
 
-            model = BoltScalefreeClampWAE(
+            model = BoltScalefreeClampVAE(
                 data_module.dims[-1],
                 power_law_gamma=gamma,
                 min_decay=0.001,
@@ -510,7 +511,7 @@ if __name__ == "__main__":
             trainer = pl.Trainer(
                 max_epochs=5,
                 accelerator="gpu",
-                devices=[4],
+                devices=[3],
                 logger=[tl_logger, csv_logger],
                 enable_progress_bar=True,
             )
